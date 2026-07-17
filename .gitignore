@@ -1,0 +1,17 @@
+/target/
+**/*.rs.bk
+*.pdb
+*.exp
+*.ilk
+*.lib
+*.so
+*.dylib
+*.dll
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Cargo.lock
+checkpoint.txt
