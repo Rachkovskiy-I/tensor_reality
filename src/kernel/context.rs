@@ -24,7 +24,7 @@ impl ContextWindow {
     pub fn push(&mut self, token: Token) -> Result<(), String> {
         if self.tokens.len() >= self.max_length {
             // Удаляем самый старый токен
-            let removed = self.tokens.remove(0);
+            let _removed = self.tokens.remove(0);
             self.overflow_count += 1;
             self.tokens.push(token);
             return Ok(());
