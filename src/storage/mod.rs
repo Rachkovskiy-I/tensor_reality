@@ -7,6 +7,15 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::kernel::TensorKernel;
+use crate::kernel::token::Token;
+use serde::{Deserialize, Serialize};
+
+// Структура для полного сохранения состояния
+#[derive(Serialize, Deserialize)]
+pub struct FullState {
+    pub tick: u64,
+    pub tokens: Vec<Token>,
+}
 
 pub fn save_checkpoint(kernel: &TensorKernel, filename: &str) -> Result<(), String> {
     let path = Path::new(filename);
@@ -45,4 +54,33 @@ pub fn load_checkpoint(filename: &str) -> Result<(u64, usize, f32), String> {
     }
     
     Ok((tick, context_size, total_mass))
+}
+
+// НОВАЯ ФУНКЦИЯ: Сохраняем все токены в JSON
+pub fn save_full_state(kernel: &TensorKernel, filename: &str) -> Result<(), String> {
+    let state = FullState {
+        tick: kernel.tick,
+        tokens: kernel.context.tokens.clone(),
+    };
+    
+    let json = serde_json::to_string_pretty(&state)
+        .map_err(|e| format!("Failed to serialize: {}", e))?;
+    
+    std::fs::write(filename, json)
+        .map_err(|e| format!("Failed to write: {}", e))?;
+    
+    println!("[STORAGE] Full state saved to: {} ({} tokens)", filename, state.tokens.len());
+    Ok(())
+}
+
+// НОВАЯ ФУНКЦИЯ: Загружаем все токены из JSON
+pub fn load_full_state(filename: &str) -> Result<FullState, String> {
+    let data = std::fs::read_to_string(filename)
+        .map_err(|e| format!("Failed to read: {}", e))?;
+    
+    let state: FullState = serde_json::from_str(&data)
+        .map_err(|e| format!("Failed to deserialize: {}", e))?;
+    
+    println!("[STORAGE] Full state loaded from: {} ({} tokens)", filename, state.tokens.len());
+    Ok(state)
 }

@@ -8,7 +8,7 @@ mod utils;
 mod storage;
 
 use kernel::TensorKernel;
-use storage::{save_checkpoint, load_checkpoint};
+use storage::{save_checkpoint, load_checkpoint, save_full_state, load_full_state};
 
 fn main() {
     println!("╔══════════════════════════════════════════════════════════════╗");
@@ -17,21 +17,24 @@ fn main() {
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
 
-    // Пытаемся загрузить сохраненное состояние
-    match load_checkpoint("checkpoint.txt") {
-        Ok((tick, context_size, total_mass)) => {
-            println!("✓ Checkpoint loaded!");
-            println!("  Previous tick: {}", tick);
-            println!("  Previous context size: {}", context_size);
-            println!("  Previous total mass: {:.4}", total_mass);
+    // Пытаемся загрузить полное состояние
+    match load_full_state("full_state.json") {
+        Ok(state) => {
+            println!("✓ Full state loaded!");
+            println!("  Previous tick: {}", state.tick);
+            println!("  Tokens count: {}", state.tokens.len());
             println!();
             
-            // Создаем ядро и восстанавливаем состояние
+            // Создаем ядро
             let mut kernel = TensorKernel::new();
-            // Восстанавливаем счетчик тиков
-            kernel.tick = tick;
+            kernel.tick = state.tick;
             
-            println!("Starting main loop from checkpoint...");
+            // Восстанавливаем токены
+            for token in state.tokens {
+                let _ = kernel.context.push(token);
+            }
+            
+            println!("Starting main loop from full state...");
             for _ in 0..100 {
                 kernel.step();
             }
@@ -44,9 +47,10 @@ fn main() {
             // Сохраняем обновленное состояние
             println!();
             let _ = save_checkpoint(&kernel, "checkpoint.txt");
+            let _ = save_full_state(&kernel, "full_state.json");
         }
         Err(_) => {
-            println!("No checkpoint found. Starting fresh...");
+            println!("No full state found. Starting fresh...");
             println!();
             
             let mut kernel = TensorKernel::new();
@@ -68,6 +72,7 @@ fn main() {
             // Сохраняем состояние
             println!();
             let _ = save_checkpoint(&kernel, "checkpoint.txt");
+            let _ = save_full_state(&kernel, "full_state.json");
         }
     }
 }
