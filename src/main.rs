@@ -6,9 +6,11 @@ mod kernel;
 mod math;
 mod utils;
 mod storage;
+mod viz;
 
 use kernel::TensorKernel;
-use storage::{save_checkpoint, load_checkpoint, save_full_state, load_full_state};
+use storage::{save_checkpoint, save_full_state, load_full_state};
+use viz::{print_heatmap, print_stats, print_compact};
 
 fn main() {
     println!("╔══════════════════════════════════════════════════════════════╗");
@@ -35,14 +37,24 @@ fn main() {
             }
             
             println!("Starting main loop from full state...");
-            for _ in 0..100 {
+            for i in 0..100 {
                 kernel.step();
+                
+                // Каждые 20 шагов показываем статистику
+                if i % 20 == 0 && i > 0 {
+                    print_compact(&kernel);
+                    println!();
+                }
             }
             println!();
             println!("✓ Main loop completed");
             println!("  Total ticks: {}", kernel.tick);
             println!("  Final context size: {}", kernel.context_len());
             println!("  Final total mass: {:.4}", kernel.total_mass());
+            
+            // Показываем тепловую карту внимания
+            print_heatmap(&kernel);
+            print_stats(&kernel);
             
             // Сохраняем обновленное состояние
             println!();
@@ -60,14 +72,24 @@ fn main() {
             println!();
 
             println!("Starting main loop...");
-            for _ in 0..1000 {
+            for i in 0..1000 {
                 kernel.step();
+                
+                // Каждые 100 шагов показываем статистику
+                if i % 100 == 0 && i > 0 {
+                    print_compact(&kernel);
+                    println!();
+                }
             }
             println!();
             println!("✓ Main loop completed");
             println!("  Total ticks: {}", kernel.tick);
             println!("  Final context size: {}", kernel.context_len());
             println!("  Final total mass: {:.4}", kernel.total_mass());
+
+            // Показываем тепловую карту внимания
+            print_heatmap(&kernel);
+            print_stats(&kernel);
 
             // Сохраняем состояние
             println!();
