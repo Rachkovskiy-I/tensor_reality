@@ -12,7 +12,6 @@ pub fn save_checkpoint(kernel: &TensorKernel, filename: &str) -> Result<(), Stri
     let path = Path::new(filename);
     let mut file = File::create(path).map_err(|e| format!("Failed to create file: {}", e))?;
     
-    // Сохраняем базовую информацию
     let data = format!(
         "tick:{}\ncontext_size:{}\ntotal_mass:{:.4}\n",
         kernel.tick,
@@ -27,8 +26,23 @@ pub fn save_checkpoint(kernel: &TensorKernel, filename: &str) -> Result<(), Stri
     Ok(())
 }
 
-pub fn load_checkpoint(filename: &str) -> Result<String, String> {
+pub fn load_checkpoint(filename: &str) -> Result<(u64, usize, f32), String> {
     let data = std::fs::read_to_string(filename)
         .map_err(|e| format!("Failed to read checkpoint: {}", e))?;
-    Ok(data)
+    
+    let mut tick = 0;
+    let mut context_size = 0;
+    let mut total_mass = 0.0;
+    
+    for line in data.lines() {
+        if let Some(stripped) = line.strip_prefix("tick:") {
+            tick = stripped.parse().map_err(|e| format!("Invalid tick: {}", e))?;
+        } else if let Some(stripped) = line.strip_prefix("context_size:") {
+            context_size = stripped.parse().map_err(|e| format!("Invalid context_size: {}", e))?;
+        } else if let Some(stripped) = line.strip_prefix("total_mass:") {
+            total_mass = stripped.parse().map_err(|e| format!("Invalid total_mass: {}", e))?;
+        }
+    }
+    
+    Ok((tick, context_size, total_mass))
 }
