@@ -1,7 +1,7 @@
 // =============================================================================
 // TRAIN - Learning and adaptation
 // =============================================================================
-
+use rayon::prelude::*;
 use super::token::Token;
 use super::context::ContextWindow;
 use super::HIDDEN_DIM;
@@ -39,18 +39,31 @@ impl Trainer {
         }
     }
 
-    fn compute_average_embedding(&self, context: &ContextWindow) -> Vec<f32> {
-        let mut avg = vec![0.0; HIDDEN_DIM];
-        let count = context.len();
-        
-        for token in &context.tokens {
-            for i in 0..HIDDEN_DIM.min(token.embedding.len()) {
-                avg[i] += token.embedding[i] / count as f32;
-            }
-        }
-        
-        avg
+   fn compute_average_embedding(&self, context: &ContextWindow) -> Vec<f32> {
+    let count = context.len();
+    if count == 0 {
+        return vec![0.0; HIDDEN_DIM];
     }
+    
+    // Параллельно суммируем эмбеддинги
+    let sum: Vec<f32> = context.tokens
+        .par_iter()
+        .fold(|| vec![0.0; HIDDEN_DIM], |mut acc, token| {
+            for i in 0..HIDDEN_DIM.min(token.embedding.len()) {
+                acc[i] += token.embedding[i];
+            }
+            acc
+        })
+        .reduce(|| vec![0.0; HIDDEN_DIM], |mut a, b| {
+            for i in 0..HIDDEN_DIM {
+                a[i] += b[i];
+            }
+            a
+        });
+    
+    // Делим на количество
+    sum.iter().map(|x| x / count as f32).collect()
+}
 
     // Вычисляем "ошибку" как расстояние между токенами
     pub fn compute_loss(&self, context: &ContextWindow) -> f32 {

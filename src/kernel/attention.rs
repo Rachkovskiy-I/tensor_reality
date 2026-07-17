@@ -1,9 +1,10 @@
 // =============================================================================
-// ATTENTION - Fundamental force between tokens
+// ATTENTION - Fundamental force between tokens (with parallel computing)
 // =============================================================================
 
 use super::token::Token;
 use super::HIDDEN_DIM;
+use rayon::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct AttentionMatrix {
@@ -29,24 +30,32 @@ impl AttentionMatrix {
         self.scores = vec![vec![0.0; size]; size];
         self.weights = vec![vec![0.0; size]; size];
 
-        // Вычисляем оценки внимания (скалярное произведение)
-        for i in 0..size {
-            for j in 0..size {
-                let score = self.dot_product(&tokens[i].embedding, &tokens[j].embedding);
-                self.scores[i][j] = score / (HIDDEN_DIM as f32).sqrt();
-            }
-        }
+        // Параллельно вычисляем оценки внимания
+        let embeddings: Vec<&[f32]> = tokens.iter().map(|t| &t.embedding[..]).collect();
+        
+        let scores: Vec<Vec<f32>> = (0..size)
+            .into_par_iter()
+            .map(|i| {
+                let mut row = vec![0.0; size];
+                let qi = embeddings[i];
+                for j in 0..size {
+                    let kj = embeddings[j];
+                    let score = qi.iter().zip(kj).map(|(a, b)| a * b).sum::<f32>();
+                    row[j] = score / (HIDDEN_DIM as f32).sqrt();
+                }
+                row
+            })
+            .collect();
 
-        // Применяем softmax к каждой строке
-        for i in 0..size {
-            let row: Vec<f32> = self.scores[i].clone();
-            let softmax_row = self.softmax(&row);
-            self.weights[i] = softmax_row;
-        }
-    }
+        self.scores = scores;
 
-    fn dot_product(&self, a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b).map(|(x, y)| x * y).sum()
+        // Параллельно применяем softmax к каждой строке
+        let weights: Vec<Vec<f32>> = self.scores
+            .par_iter()
+            .map(|row| self.softmax(row))
+            .collect();
+
+        self.weights = weights;
     }
 
     fn softmax(&self, logits: &[f32]) -> Vec<f32> {
